@@ -14,6 +14,7 @@ try:
     import time
     import json
     import traceback
+    import tempfile
     import ctypes
     from ctypes import wintypes
     from pathlib import Path
@@ -229,6 +230,34 @@ try:
                 return new_path
             counter += 1
 
+    # ---------- Запись лога с резервными файлами ----------
+    def write_log(log_file: str, log_entries: list) -> None:
+        """Записывает лог без падений. Если основной файл занят другим процессом
+        (открыт в Блокноте/Excel), пробует rename_log_1.txt, rename_log_2.txt, ...,
+        затем %TEMP%\\rename_log.txt. Если заняты все варианты — выводит лог в консоль."""
+        content = "\n".join(log_entries)
+        base_dir = os.path.dirname(os.path.abspath(log_file))
+        base_name = os.path.basename(log_file)
+        stem, ext = os.path.splitext(base_name)
+
+        candidates = [log_file]
+        for i in range(1, 20):
+            candidates.append(os.path.join(base_dir, f"{stem}_{i}{ext}"))
+        candidates.append(os.path.join(tempfile.gettempdir(), base_name))
+
+        for candidate in candidates:
+            try:
+                with open(candidate, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                if candidate != log_file:
+                    print(f"ВНИМАНИЕ: {log_file} занят другим процессом. Лог сохранён в {candidate}")
+                return
+            except OSError:
+                continue
+
+        print("НЕ УДАЛОСЬ записать лог-файл ни в один из вариантов. Содержимое лога:")
+        print(content)
+
     # ---------- Безопасное переименование ----------
     def safe_rename_with_retry(old_path: Path, new_path: Path, occupied: set, max_retries: int = 3) -> tuple:
         parent = new_path.parent
@@ -296,8 +325,7 @@ try:
                 msg = "Не найдено элементов для обработки (возможно, папка пуста или ошибка доступа)."
                 print(msg)
                 log_entries.append(msg)
-                with open(log_file, 'w', encoding='utf-8') as f:
-                    f.write("\n".join(log_entries))
+                write_log(log_file, log_entries)
                 wait_exit()
                 return
 
@@ -332,8 +360,7 @@ try:
                 msg = "Все имена уже соответствуют правилам сокращения. Изменений не требуется."
                 print(msg)
                 log_entries.append(msg)
-                with open(log_file, 'w', encoding='utf-8') as f:
-                    f.write("\n".join(log_entries))
+                write_log(log_file, log_entries)
                 wait_exit()
                 return
 
@@ -362,7 +389,7 @@ try:
                 if len(str(new)) > MAX_FULL_PATH_LEN:
                     long_path_items.append(idx)
 
-            if long_path_items and not auto_apply:
+            if long_path_items and not auto_apply and not dry_run:
                 print(f"\nВнимание: {len(long_path_items)} элементов имеют полный путь длиннее {MAX_FULL_PATH_LEN} символов.")
                 print("Это может вызвать ошибки при переименовании в Windows.")
                 answer = input("Продолжить? (y/n): ").strip().lower()
@@ -370,11 +397,17 @@ try:
                     msg = "Операция отменена пользователем."
                     print(msg)
                     log_entries.append(msg)
-                    with open(log_file, 'w', encoding='utf-8') as f:
-                        f.write("\n".join(log_entries))
+                    write_log(log_file, log_entries)
                     wait_exit()
                     return
 
+            if dry_run:
+                print("\n[РЕЖИМ ПРЕДПРОСМОТРА] Изменения НЕ применяются.")
+                print(f"Будет переименовано: {len(final_changes)} элементов.")
+                log_entries.append("[РЕЖИМ ПРЕДПРОСМОТРА] Изменения не применялись.")
+                write_log(log_file, log_entries)
+                wait_exit()
+                return
             if auto_apply:
                 print("\n[АВТОМАТИЧЕСКАЯ ОБРАБОТКА] Применяем изменения без подтверждения.")
                 log_entries.append("[АВТОМАТИЧЕСКАЯ ОБРАБОТКА]")
@@ -384,8 +417,7 @@ try:
                     msg = "Операция отменена пользователем."
                     print(msg)
                     log_entries.append(msg)
-                    with open(log_file, 'w', encoding='utf-8') as f:
-                        f.write("\n".join(log_entries))
+                    write_log(log_file, log_entries)
                     wait_exit()
                     return
 
@@ -427,15 +459,13 @@ try:
             else:
                 print("Все элементы переименованы успешно!")
 
-            with open(log_file, 'w', encoding='utf-8') as f:
-                f.write("\n".join(log_entries))
+            write_log(log_file, log_entries)
 
         except Exception as e:
             error_msg = f"КРИТИЧЕСКАЯ ОШИБКА: {e}\n{traceback.format_exc()}"
             print(error_msg)
             log_entries.append(error_msg)
-            with open(log_file, 'w', encoding='utf-8') as f:
-                f.write("\n".join(log_entries))
+            write_log(log_file, log_entries)
             wait_exit()
             raise
 

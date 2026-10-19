@@ -176,6 +176,7 @@ python shorten_filenames.py --add                                  # добав�
 - [`docs/RULES.md`](docs/RULES.md) — полный список встроенных сокращений.
 - [`docs/FAQ.md`](docs/FAQ.md) — частые ошибки (WinError 5, PermissionError, слишком длинные пути) и их решение.
 - [`CHANGELOG.md`](CHANGELOG.md) — история изменений.
+- [`SECURITY.md`](SECURITY.md) — правила сообщения об уязвимостях.
 
 ---
 
