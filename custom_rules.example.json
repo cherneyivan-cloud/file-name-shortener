@@ -1,0 +1,5 @@
+[
+  { "original": "Рабочая документация", "replacement": "РД" },
+  { "original": "Технический отчёт",    "replacement": "ТО" },
+  { "original": "Пояснительная записка","replacement": "ПЗ" }
+]

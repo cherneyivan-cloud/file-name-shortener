@@ -1,0 +1,22 @@
+# Служебные файлы Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Логи и правила (содержат пользовательские данные)
+rename_log*.txt
+startup_debug.log
+custom_rules.json
+
+# Конфиги IDE
+.vscode/
+.idea/
+*.swp
+
+# ОС
+.DS_Store
+Thumbs.db
+desktop.ini
